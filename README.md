@@ -1,12 +1,29 @@
 # Personalized Notes
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Tests: 13 Passed](https://img.shields.io/badge/Tests-13%20Passed-brightgreen.svg)](src/engine/ShapeRecognition.test.js)
+[![Vite](https://img.shields.io/badge/Bundler-Vite%206-646CFF.svg)](https://vitejs.dev/)
+[![Storage: IndexedDB](https://img.shields.io/badge/Storage-IndexedDB-informational.svg)](src/storage/Database.js)
+[![Security: CSP Hardened](https://img.shields.io/badge/Security-CSP%20Hardened-success.svg)](public/_headers)
+
 A high-performance, offline-first digital notebook designed for natural handwriting, sketching, and structured note-taking. Built with a multi-layer HTML5 Canvas architecture, real-time geometric shape recognition, and boundary-aware area flood fill.
+
+## Live Deployments
+
+- Production Web App: [https://personallised-notes.vercel.app](https://personallised-notes.vercel.app)
+- GitHub Pages Mirror: [https://anandakrishnano-bit.github.io/personallised-notes/](https://anandakrishnano-bit.github.io/personallised-notes/)
+
+## Preview
+
+| Home Dashboard | Canvas Editor & Flood Fill |
+| :---: | :---: |
+| ![Home Dashboard](assets/screenshots/dashboard.png) | ![Canvas Editor](assets/screenshots/editor.png) |
 
 ## Key Features
 
 ### 1. Multi-Layer Canvas Architecture
 - Dedicated canvas layers for Background, Content, Active Ink, and UI overlays.
-- Active drawing layer uses compositor-desynchronized 2D contexts for ultra-low latency response.
+- Active drawing layer uses compositor-desynchronized 2D contexts for low latency stroke response.
 - Pixel-perfect coordinate mapping calibrated for touch, stylus, and desktop mouse inputs.
 - Device Pixel Ratio (DPR) automatic scaling for high-density displays.
 
@@ -99,27 +116,32 @@ npm run preview
 ## Project Structure
 
 ```
-├── public/                 # Static assets, PWA manifest, security headers
-│   ├── _headers            # Security response headers (CSP, HSTS, frame guards)
-│   ├── _redirects          # Single Page Application routing configuration
-│   └── icon.svg            # Application vector icon
+├── .github/
+│   └── workflows/
+│       └── deploy.yml         # GitHub Actions 24/7 automated GitHub Pages deployment
+├── assets/
+│   └── screenshots/           # Application screenshots for repository presentation
+├── public/                    # Static assets, PWA manifest, security headers
+│   ├── _headers               # Security response headers (CSP, HSTS, frame guards)
+│   ├── _redirects             # Single Page Application routing configuration
+│   └── icon.svg               # Application vector icon
 ├── src/
-│   ├── engine/             # Canvas rendering and event management
+│   ├── engine/                # Canvas rendering and event management
 │   │   ├── CanvasManager.js   # Multi-layer canvas orchestration and viewport transforms
 │   │   ├── InputHandler.js    # Pointer event processing and coordinate mapping
 │   │   ├── ShapeRecognizer.js # Geometric analysis and shape fitting algorithms
 │   │   └── StrokeRenderer.js  # Spline interpolation, calligraphic pen width, and fills
-│   ├── history/            # Undo and redo state management
+│   ├── history/               # Undo and redo state management
 │   │   └── HistoryManager.js  # Command pattern action stack
-│   ├── models/             # Data models
+│   ├── models/                # Data models
 │   │   ├── Notebook.js        # Notebook collection and pastel themes
 │   │   ├── Page.js            # Page dimensions, templates, and stroke containers
 │   │   └── Stroke.js          # Stroke coordinates, styles, and fill data
-│   ├── storage/            # Database abstraction
+│   ├── storage/               # Database abstraction
 │   │   └── Database.js        # IndexedDB operations
-│   ├── templates/          # Paper background generators
+│   ├── templates/             # Paper background generators
 │   │   └── TemplateRenderer.js# Ruled, grid, dotted, and engineering patterns
-│   ├── tools/              # Canvas interaction tools
+│   ├── tools/                 # Canvas interaction tools
 │   │   ├── BaseTool.js        # Tool interface
 │   │   ├── PenTool.js         # Handwriting with hold-to-convert recognition
 │   │   ├── PencilTool.js      # Textured graphite pencil
@@ -130,20 +152,23 @@ npm run preview
 │   │   ├── SelectTool.js      # Lasso selection and transformation
 │   │   ├── TextTool.js        # Draggable text annotations
 │   │   └── TableTool.js       # Structured tabular grids
-│   ├── ui/                 # User interface components
+│   ├── ui/                    # User interface components
 │   │   ├── LibraryView.js     # Home dashboard, notebook grid, search, and filters
 │   │   ├── Toolbar.js         # Top navigation and tool properties dock
 │   │   ├── ColorPicker.js     # Color palette selection
 │   │   ├── Dialog.js          # Modal confirmation dialogues
 │   │   └── Toast.js           # Notification system
-│   ├── styles/             # Application styles
+│   ├── styles/                # Application styles
 │   │   └── main.css           # Design tokens, themes, layout, and component styles
-│   ├── App.js              # Application controller and view coordinator
-│   └── main.js             # Application entrypoint
-├── index.html              # Main HTML entrypoint
-├── vercel.json             # Deployment headers and routing configuration
-├── package.json            # Project manifest, scripts, and dependencies
-└── vitest.config.js        # Test runner configuration
+│   ├── App.js                 # Application controller and view coordinator
+│   └── main.js                # Application entrypoint
+├── CONTRIBUTING.md            # Guidelines for project contributions
+├── LICENSE                    # MIT open-source license
+├── SECURITY.md                # Client-side privacy and security disclosures
+├── index.html                 # Main HTML entrypoint
+├── vercel.json                # Vercel deployment headers and routing configuration
+├── package.json               # Project manifest, scripts, and dependencies
+└── vitest.config.js           # Test runner configuration
 ```
 
 ## Security and Privacy Guidelines
@@ -154,4 +179,4 @@ npm run preview
 
 ## License
 
-This project is licensed under the MIT License.
+This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
