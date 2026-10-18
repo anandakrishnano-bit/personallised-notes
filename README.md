@@ -17,7 +17,7 @@ A high-performance, offline-first digital notebook designed for handwriting, ske
 
 | Home Dashboard | Canvas Editor |
 | :---: | :---: |
-| ![Home Dashboard](assets/screenshots/dashboard.png) | ![Canvas Editor](assets/screenshots/editor.png) |
+| ![Home Dashboard](assets/screenshots/home-dashboard.png) | ![Canvas Editor](assets/screenshots/canvas-editor.png) |
 
 ## Features
 
