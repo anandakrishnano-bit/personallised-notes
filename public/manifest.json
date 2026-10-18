@@ -1,0 +1,20 @@
+{
+  "name": "Personalized Notes",
+  "short_name": "Notes",
+  "description": "A fast, offline digital notebook for handwriting, drawing, and PDF annotation",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f0f1a",
+  "theme_color": "#1a1a2e",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "categories": ["productivity", "education"],
+  "lang": "en"
+}
