@@ -53,6 +53,15 @@ A high-performance, offline-first digital notebook designed for handwriting, ske
 - Zero analytics, trackers, or external API dependencies.
 - Strict Content Security Policy and HTTP security headers.
 
+## Design System and UI Inspiration
+
+The interface is inspired by professional creative studios (Apple Notes, GoodNotes, and Procreate) combined with the clean aesthetic of modern component design systems:
+
+- **Component Architecture**: Built following shadcn/ui design principles in pure Vanilla JavaScript and CSS. Employs consistent border tokens, muted surface layers, backdrop blurs, and accessible keyboard focus states.
+- **Contextual Tool Popovers**: Pressing and holding (or clicking while active) any drawing tool brings up a dedicated popover menu for immediate control over stroke widths, graphite hardness, highlighter opacity, and geometric shapes.
+- **Pastel Color Harmony**: An intentionally curated palette using Sage, Lavender, Apricot, Slate, and Sky tones, engineered for low eye fatigue during extended writing sessions in both light and dark modes.
+- **Physical Paper Simulation**: Realistic drafting grids, engineering pads, lined paper with red margin lines, and Cornell formats rendered on canvas with sub-pixel alignment.
+
 ## Technology Stack
 
 - Core: Modern JavaScript (ES Modules), Vanilla CSS, HTML5 Canvas

@@ -19,6 +19,7 @@ export class Toolbar {
     this.activeTool = 'pen';
     this.colorPicker = null;
     this.colorPopoverEl = null;
+    this.activeToolPopover = null;
     this.recentColors = ['#fafafa', '#a1a1aa', '#3b82f6', '#10b981', '#f59e0b', '#ef4444'];
   }
 
@@ -563,11 +564,65 @@ export class Toolbar {
       this.app.openSettingsModal();
     });
 
-    // Tool switching
+    // Tool switching with long-press (press and hold) & active click context menu
     this.toolbarEl.querySelectorAll('[data-tool]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const toolName = btn.getAttribute('data-tool');
-        this.setTool(toolName);
+      const toolName = btn.getAttribute('data-tool');
+      let pressTimer = null;
+      let startX = 0;
+      let startY = 0;
+      let didLongPress = false;
+
+      const clearTimer = () => {
+        if (pressTimer) {
+          clearTimeout(pressTimer);
+          pressTimer = null;
+        }
+      };
+
+      btn.addEventListener('pointerdown', (e) => {
+        if (e.button !== 0) return;
+        didLongPress = false;
+        startX = e.clientX;
+        startY = e.clientY;
+        clearTimer();
+
+        pressTimer = setTimeout(() => {
+          didLongPress = true;
+          if (this.activeTool !== toolName) {
+            this.setTool(toolName);
+          }
+          this._showToolContextPopover(toolName, btn);
+        }, 340);
+      });
+
+      btn.addEventListener('pointermove', (e) => {
+        if (pressTimer && Math.hypot(e.clientX - startX, e.clientY - startY) > 8) {
+          clearTimer();
+        }
+      });
+
+      btn.addEventListener('pointerup', (e) => {
+        if (pressTimer) {
+          clearTimer();
+          if (!didLongPress) {
+            if (this.activeTool === toolName) {
+              this._toggleToolContextPopover(toolName, btn);
+            } else {
+              this.setTool(toolName);
+            }
+          }
+        }
+      });
+
+      btn.addEventListener('pointercancel', clearTimer);
+      btn.addEventListener('pointerleave', clearTimer);
+
+      btn.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        if (this.activeTool !== toolName) {
+          this.setTool(toolName);
+        }
+        this._showToolContextPopover(toolName, btn);
       });
     });
 
@@ -660,6 +715,7 @@ export class Toolbar {
   }
 
   setTool(name) {
+    this._closeToolContextPopover();
     this.activeTool = name;
     this.app.setActiveTool(name);
     this._renderToolbar();
@@ -909,5 +965,422 @@ export class Toolbar {
 
     document.body.appendChild(menu);
     setTimeout(() => document.addEventListener('pointerdown', checkClick), 10);
+  }
+
+  _closeToolContextPopover() {
+    if (this.activeToolPopover) {
+      this.activeToolPopover.remove();
+      this.activeToolPopover = null;
+    }
+  }
+
+  _toggleToolContextPopover(toolName, anchorBtn) {
+    if (this.activeToolPopover && this.activeToolPopover.getAttribute('data-popover-tool') === toolName) {
+      this._closeToolContextPopover();
+    } else {
+      this._showToolContextPopover(toolName, anchorBtn);
+    }
+  }
+
+  _showToolContextPopover(toolName, anchorBtn) {
+    this._closeToolContextPopover();
+    if (this.colorPopoverEl) this.colorPopoverEl.style.display = 'none';
+
+    const opts = this.app.getToolOptions(toolName) || {};
+    const currentColor = opts.color || '#fafafa';
+    const currentSize = opts.size || 3;
+
+    const popover = document.createElement('div');
+    popover.className = 'tool-context-popover';
+    popover.setAttribute('data-popover-tool', toolName);
+
+    let contentHtml = '';
+
+    if (toolName === 'pen') {
+      const penColors = ['#18181b', '#2563eb', '#059669', '#dc2626', '#7c3aed', '#d97706', '#e11d48', '#fafafa'];
+      const penSizes = [1, 2, 3, 5, 8, 12];
+      contentHtml = `
+        <div class="tool-popover-header">
+          <div class="tool-popover-title">${icons.pen} <span>Pen Options</span></div>
+          <button class="ui-btn ui-btn-ghost ui-btn-icon-sm" data-close-popover style="width:20px; height:20px;">${icons.x}</button>
+        </div>
+        <div class="tool-popover-section">
+          <div class="tool-popover-label"><span>Ink Color</span><span style="font-size:10px; color:var(--muted-foreground);">${currentColor}</span></div>
+          <div class="tool-swatches-grid">
+            ${penColors.map(c => `
+              <button class="tool-swatch-btn ${currentColor === c ? 'active' : ''}" data-popover-color="${c}" style="background-color: ${c};" title="${c}"></button>
+            `).join('')}
+          </div>
+        </div>
+        <div class="tool-popover-section">
+          <div class="tool-popover-label"><span>Stroke Width</span><span id="popover-size-val">${currentSize}px</span></div>
+          <input type="range" class="ui-slider" id="popover-size-slider" min="1" max="40" value="${currentSize}" style="width: 100%;" />
+          <div class="tool-preset-pills">
+            ${penSizes.map(s => `
+              <div class="tool-preset-pill ${currentSize === s ? 'active' : ''}" data-popover-size="${s}">${s}px</div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    } else if (toolName === 'pencil') {
+      const pencilColors = ['#1e293b', '#334155', '#475569', '#64748b', '#94a3b8', '#78350f', '#1e3a8a', '#fafafa'];
+      const pencilSizes = [1, 2, 3, 5, 8];
+      contentHtml = `
+        <div class="tool-popover-header">
+          <div class="tool-popover-title">${icons.pencil} <span>Pencil Options</span></div>
+          <button class="ui-btn ui-btn-ghost ui-btn-icon-sm" data-close-popover style="width:20px; height:20px;">${icons.x}</button>
+        </div>
+        <div class="tool-popover-section">
+          <div class="tool-popover-label"><span>Graphite Lead</span><span style="font-size:10px; color:var(--muted-foreground);">${currentColor}</span></div>
+          <div class="tool-swatches-grid">
+            ${pencilColors.map(c => `
+              <button class="tool-swatch-btn ${currentColor === c ? 'active' : ''}" data-popover-color="${c}" style="background-color: ${c};" title="${c}"></button>
+            `).join('')}
+          </div>
+        </div>
+        <div class="tool-popover-section">
+          <div class="tool-popover-label"><span>Lead Thickness</span><span id="popover-size-val">${currentSize}px</span></div>
+          <input type="range" class="ui-slider" id="popover-size-slider" min="1" max="25" value="${currentSize}" style="width: 100%;" />
+          <div class="tool-preset-pills">
+            ${pencilSizes.map(s => `
+              <div class="tool-preset-pill ${currentSize === s ? 'active' : ''}" data-popover-size="${s}">${s}px</div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    } else if (toolName === 'highlighter') {
+      const hlColors = ['#fef08a', '#bbf7d0', '#bae6fd', '#fed7aa', '#fbcfe8', '#e9d5ff'];
+      const hlSizes = [12, 18, 24, 32, 42];
+      contentHtml = `
+        <div class="tool-popover-header">
+          <div class="tool-popover-title">${icons.highlighter} <span>Highlighter Options</span></div>
+          <button class="ui-btn ui-btn-ghost ui-btn-icon-sm" data-close-popover style="width:20px; height:20px;">${icons.x}</button>
+        </div>
+        <div class="tool-popover-section">
+          <div class="tool-popover-label"><span>Translucent Tint</span></div>
+          <div class="tool-swatches-grid">
+            ${hlColors.map(c => `
+              <button class="tool-swatch-btn ${currentColor === c ? 'active' : ''}" data-popover-color="${c}" style="background-color: ${c};" title="${c}"></button>
+            `).join('')}
+          </div>
+        </div>
+        <div class="tool-popover-section">
+          <div class="tool-popover-label"><span>Highlight Width</span><span id="popover-size-val">${currentSize}px</span></div>
+          <input type="range" class="ui-slider" id="popover-size-slider" min="8" max="60" value="${currentSize}" style="width: 100%;" />
+          <div class="tool-preset-pills">
+            ${hlSizes.map(s => `
+              <div class="tool-preset-pill ${currentSize === s ? 'active' : ''}" data-popover-size="${s}">${s}px</div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    } else if (toolName === 'eraser') {
+      const eraserSizes = [8, 16, 24, 40];
+      const isPrecision = this.app.tools.eraser?.mode === 'precision';
+      contentHtml = `
+        <div class="tool-popover-header">
+          <div class="tool-popover-title">${icons.eraser} <span>Eraser Options</span></div>
+          <button class="ui-btn ui-btn-ghost ui-btn-icon-sm" data-close-popover style="width:20px; height:20px;">${icons.x}</button>
+        </div>
+        <div class="tool-popover-section">
+          <div class="tool-popover-label"><span>Eraser Mode</span></div>
+          <div class="tool-preset-pills">
+            <div class="tool-preset-pill ${!isPrecision ? 'active' : ''}" id="popover-eraser-stroke">Whole Stroke</div>
+            <div class="tool-preset-pill ${isPrecision ? 'active' : ''}" id="popover-eraser-prec">Precision</div>
+          </div>
+        </div>
+        <div class="tool-popover-section">
+          <div class="tool-popover-label"><span>Eraser Radius</span><span id="popover-size-val">${currentSize}px</span></div>
+          <input type="range" class="ui-slider" id="popover-size-slider" min="4" max="80" value="${currentSize}" style="width: 100%;" />
+          <div class="tool-preset-pills">
+            ${eraserSizes.map(s => `
+              <div class="tool-preset-pill ${currentSize === s ? 'active' : ''}" data-popover-size="${s}">${s}px</div>
+            `).join('')}
+          </div>
+        </div>
+        <div class="tool-popover-section" style="padding-top: 6px; border-top: 1px solid hsl(var(--border) / 0.5);">
+          <button class="ui-btn ui-btn-destructive ui-btn-sm" id="popover-clear-page-btn" style="width: 100%; justify-content: center;">
+            ${icons.trash} Clear Page
+          </button>
+        </div>
+      `;
+    } else if (toolName === 'shape') {
+      const currentShape = this.app.tools.shape?.shapeType || 'rectangle';
+      const shapeList = [
+        { id: 'rectangle', label: 'Rectangle', icon: icons.rect },
+        { id: 'circle', label: 'Circle', icon: icons.circle },
+        { id: 'line', label: 'Line', icon: icons.line },
+        { id: 'arrow', label: 'Arrow', icon: icons.arrow },
+        { id: 'triangle', label: 'Triangle', icon: icons.triangle },
+        { id: 'diamond', label: 'Diamond', icon: icons.diamond },
+        { id: 'star', label: 'Star', icon: icons.star }
+      ];
+      const isFilled = !!opts.fill;
+      const isSnap = opts.snap !== false;
+      contentHtml = `
+        <div class="tool-popover-header">
+          <div class="tool-popover-title">${icons.shapes} <span>Shape & Geometry</span></div>
+          <button class="ui-btn ui-btn-ghost ui-btn-icon-sm" data-close-popover style="width:20px; height:20px;">${icons.x}</button>
+        </div>
+        <div class="tool-popover-section">
+          <div class="tool-popover-label"><span>Geometric Form</span></div>
+          <div class="tool-shapes-grid">
+            ${shapeList.map(s => `
+              <div class="tool-shape-opt ${currentShape === s.id ? 'active' : ''}" data-popover-shape="${s.id}">
+                ${s.icon}
+                <span>${s.label}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+        <div class="tool-popover-section">
+          <div class="tool-popover-label"><span>Stroke Thickness</span><span id="popover-size-val">${currentSize}px</span></div>
+          <input type="range" class="ui-slider" id="popover-size-slider" min="1" max="30" value="${currentSize}" style="width: 100%;" />
+        </div>
+        <div class="tool-popover-section" style="display: flex; gap: 8px;">
+          <button class="ui-btn ui-btn-outline ui-btn-sm ${isFilled ? 'active' : ''}" id="popover-shape-fill-btn" style="flex: 1; justify-content: center;">
+            ${icons.fill} <span>${isFilled ? 'Fill: On' : 'Fill: Off'}</span>
+          </button>
+          <button class="ui-btn ui-btn-outline ui-btn-sm ${isSnap ? 'active' : ''}" id="popover-shape-snap-btn" style="flex: 1; justify-content: center;">
+            ${icons.grid} <span>${isSnap ? 'Snap: On' : 'Snap: Off'}</span>
+          </button>
+        </div>
+      `;
+    } else if (toolName === 'fill') {
+      const fillColors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#fafafa'];
+      contentHtml = `
+        <div class="tool-popover-header">
+          <div class="tool-popover-title">${icons.fill} <span>Flood Fill Options</span></div>
+          <button class="ui-btn ui-btn-ghost ui-btn-icon-sm" data-close-popover style="width:20px; height:20px;">${icons.x}</button>
+        </div>
+        <div class="tool-popover-section">
+          <div class="tool-popover-label"><span>Fill Color</span><span style="font-size:10px; color:var(--muted-foreground);">${currentColor}</span></div>
+          <div class="tool-swatches-grid">
+            ${fillColors.map(c => `
+              <button class="tool-swatch-btn ${currentColor === c ? 'active' : ''}" data-popover-color="${c}" style="background-color: ${c};" title="${c}"></button>
+            `).join('')}
+          </div>
+        </div>
+        <div class="tool-popover-section">
+          <div class="tool-popover-label"><span>Instructions</span></div>
+          <p style="font-size: 11px; color: hsl(var(--muted-foreground)); margin: 0; line-height: 1.4;">
+            Tap inside any closed shape or blank canvas area to fill with the selected tone.
+          </p>
+        </div>
+      `;
+    } else if (toolName === 'text') {
+      const textColors = ['#18181b', '#2563eb', '#059669', '#dc2626', '#7c3aed', '#fafafa'];
+      const textSizes = [12, 14, 18, 24, 32];
+      contentHtml = `
+        <div class="tool-popover-header">
+          <div class="tool-popover-title">${icons.type} <span>Text Box Options</span></div>
+          <button class="ui-btn ui-btn-ghost ui-btn-icon-sm" data-close-popover style="width:20px; height:20px;">${icons.x}</button>
+        </div>
+        <div class="tool-popover-section">
+          <div class="tool-popover-label"><span>Text Color</span><span style="font-size:10px; color:var(--muted-foreground);">${currentColor}</span></div>
+          <div class="tool-swatches-grid">
+            ${textColors.map(c => `
+              <button class="tool-swatch-btn ${currentColor === c ? 'active' : ''}" data-popover-color="${c}" style="background-color: ${c};" title="${c}"></button>
+            `).join('')}
+          </div>
+        </div>
+        <div class="tool-popover-section">
+          <div class="tool-popover-label"><span>Font Size</span><span id="popover-size-val">${currentSize}px</span></div>
+          <input type="range" class="ui-slider" id="popover-size-slider" min="10" max="64" value="${currentSize}" style="width: 100%;" />
+          <div class="tool-preset-pills">
+            ${textSizes.map(s => `
+              <div class="tool-preset-pill ${currentSize === s ? 'active' : ''}" data-popover-size="${s}">${s}px</div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    } else if (toolName === 'table') {
+      contentHtml = `
+        <div class="tool-popover-header">
+          <div class="tool-popover-title">${icons.table} <span>Table Dimensions</span></div>
+          <button class="ui-btn ui-btn-ghost ui-btn-icon-sm" data-close-popover style="width:20px; height:20px;">${icons.x}</button>
+        </div>
+        <div class="tool-popover-section">
+          <div class="tool-popover-label"><span>Quick Insert Grid</span></div>
+          <div class="tool-preset-pills" style="flex-wrap: wrap;">
+            <div class="tool-preset-pill" data-popover-table="2x2">2 × 2</div>
+            <div class="tool-preset-pill" data-popover-table="3x3">3 × 3</div>
+            <div class="tool-preset-pill" data-popover-table="4x3">4 × 3</div>
+            <div class="tool-preset-pill" data-popover-table="5x4">5 × 4</div>
+          </div>
+        </div>
+      `;
+    } else if (toolName === 'select') {
+      contentHtml = `
+        <div class="tool-popover-header">
+          <div class="tool-popover-title">${icons.lasso} <span>Lasso Selection</span></div>
+          <button class="ui-btn ui-btn-ghost ui-btn-icon-sm" data-close-popover style="width:20px; height:20px;">${icons.x}</button>
+        </div>
+        <div class="tool-popover-section">
+          <p style="font-size: 11px; color: hsl(var(--muted-foreground)); margin: 0 0 8px; line-height: 1.4;">
+            Circle strokes or text elements to select, move, scale, or delete them.
+          </p>
+          <div style="display: flex; gap: 6px;">
+            <button class="ui-btn ui-btn-outline ui-btn-sm" id="popover-sel-dup" style="flex:1;">${icons.copy} Duplicate</button>
+            <button class="ui-btn ui-btn-destructive ui-btn-sm" id="popover-sel-del" style="flex:1;">${icons.trash} Delete</button>
+          </div>
+        </div>
+      `;
+    } else if (toolName === 'move') {
+      contentHtml = `
+        <div class="tool-popover-header">
+          <div class="tool-popover-title">${icons.move} <span>Canvas Navigation</span></div>
+          <button class="ui-btn ui-btn-ghost ui-btn-icon-sm" data-close-popover style="width:20px; height:20px;">${icons.x}</button>
+        </div>
+        <div class="tool-popover-section">
+          <p style="font-size: 11px; color: hsl(var(--muted-foreground)); margin: 0 0 8px; line-height: 1.4;">
+            Drag with one finger or mouse to pan across the canvas. Pinch to zoom in or out.
+          </p>
+          <div style="display: flex; gap: 6px;">
+            <button class="ui-btn ui-btn-outline ui-btn-sm" id="popover-fit-btn" style="flex:1;">Fit to Screen</button>
+            <button class="ui-btn ui-btn-outline ui-btn-sm" id="popover-100-btn" style="flex:1;">100% Zoom</button>
+          </div>
+        </div>
+      `;
+    }
+
+    popover.innerHTML = contentHtml;
+    document.body.appendChild(popover);
+    this.activeToolPopover = popover;
+
+    const rect = anchorBtn.getBoundingClientRect();
+    const popoverW = 280;
+    let left = Math.max(10, Math.min(window.innerWidth - popoverW - 12, rect.left - 20));
+    let top = rect.bottom + 8;
+    popover.style.left = `${left}px`;
+    popover.style.top = `${top}px`;
+
+    popover.querySelector('[data-close-popover]')?.addEventListener('click', () => {
+      this._closeToolContextPopover();
+    });
+
+    popover.querySelectorAll('[data-popover-color]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const hex = btn.getAttribute('data-popover-color');
+        this.app.setToolOption(toolName, 'color', hex);
+        popover.querySelectorAll('[data-popover-color]').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const dot = anchorBtn.querySelector('span[style*="border-radius: 50%"]');
+        if (dot) dot.style.backgroundColor = hex;
+        const mainSwatch = this.toolbarEl.querySelector('#tb-active-color-swatch');
+        if (mainSwatch) mainSwatch.style.backgroundColor = hex;
+      });
+    });
+
+    const slider = popover.querySelector('#popover-size-slider');
+    const sizeVal = popover.querySelector('#popover-size-val');
+    if (slider) {
+      slider.addEventListener('input', (e) => {
+        const val = parseInt(e.target.value, 10);
+        if (sizeVal) sizeVal.textContent = `${val}px`;
+        this.app.setToolOption(toolName, 'size', val);
+        const mainSlider = this.toolbarEl.querySelector('#tb-size-slider');
+        const mainLabel = this.toolbarEl.querySelector('#tb-size-label');
+        if (mainSlider) mainSlider.value = val;
+        if (mainLabel) mainLabel.textContent = `${val}px`;
+      });
+    }
+
+    popover.querySelectorAll('[data-popover-size]').forEach(pill => {
+      pill.addEventListener('click', () => {
+        const val = parseInt(pill.getAttribute('data-popover-size'), 10);
+        if (sizeVal) sizeVal.textContent = `${val}px`;
+        if (slider) slider.value = val;
+        this.app.setToolOption(toolName, 'size', val);
+        popover.querySelectorAll('[data-popover-size]').forEach(p => p.classList.remove('active'));
+        pill.classList.add('active');
+        const mainSlider = this.toolbarEl.querySelector('#tb-size-slider');
+        const mainLabel = this.toolbarEl.querySelector('#tb-size-label');
+        if (mainSlider) mainSlider.value = val;
+        if (mainLabel) mainLabel.textContent = `${val}px`;
+      });
+    });
+
+    popover.querySelectorAll('[data-popover-shape]').forEach(opt => {
+      opt.addEventListener('click', () => {
+        const sid = opt.getAttribute('data-popover-shape');
+        this.app.tools.shape?.setShapeType(sid);
+        popover.querySelectorAll('[data-popover-shape]').forEach(o => o.classList.remove('active'));
+        opt.classList.add('active');
+        this.updateSecondaryControls();
+      });
+    });
+
+    popover.querySelector('#popover-shape-fill-btn')?.addEventListener('click', () => {
+      const cur = !!this.app.getToolOptions('shape').fill;
+      this.app.setToolOption('shape', 'fill', !cur);
+      this._showToolContextPopover('shape', anchorBtn);
+      this.updateSecondaryControls();
+    });
+    popover.querySelector('#popover-shape-snap-btn')?.addEventListener('click', () => {
+      const cur = this.app.getToolOptions('shape').snap !== false;
+      this.app.setToolOption('shape', 'snap', !cur);
+      this._showToolContextPopover('shape', anchorBtn);
+      this.updateSecondaryControls();
+    });
+
+    popover.querySelector('#popover-eraser-stroke')?.addEventListener('click', () => {
+      if (this.app.tools.eraser) this.app.tools.eraser.mode = 'stroke';
+      this._showToolContextPopover('eraser', anchorBtn);
+    });
+    popover.querySelector('#popover-eraser-prec')?.addEventListener('click', () => {
+      if (this.app.tools.eraser) this.app.tools.eraser.mode = 'precision';
+      this._showToolContextPopover('eraser', anchorBtn);
+    });
+    popover.querySelector('#popover-clear-page-btn')?.addEventListener('click', async () => {
+      this._closeToolContextPopover();
+      const confirmed = await Dialog.confirm({
+        title: 'Clear Page',
+        description: 'Are you sure you want to clear all ink strokes on this page? You can still undo this action.',
+        confirmText: 'Clear Page',
+        cancelText: 'Cancel',
+        isDestructive: true
+      });
+      if (confirmed) {
+        this.app.clearCurrentPage();
+        Toast.info('Page cleared');
+      }
+    });
+
+    popover.querySelector('#popover-sel-dup')?.addEventListener('click', () => {
+      this.app.tools.select?.duplicateSelected();
+      this.updateSecondaryControls();
+      this._closeToolContextPopover();
+    });
+    popover.querySelector('#popover-sel-del')?.addEventListener('click', () => {
+      this.app.tools.select?.deleteSelected();
+      this.updateSecondaryControls();
+      this._closeToolContextPopover();
+    });
+
+    popover.querySelector('#popover-fit-btn')?.addEventListener('click', () => {
+      this.app.fitToWidth();
+      this._closeToolContextPopover();
+    });
+    popover.querySelector('#popover-100-btn')?.addEventListener('click', () => {
+      this.app.resetZoom();
+      this._closeToolContextPopover();
+    });
+
+    popover.querySelectorAll('[data-popover-table]').forEach(pill => {
+      pill.addEventListener('click', () => {
+        const [r, c] = pill.getAttribute('data-popover-table').split('x').map(Number);
+        this.app.tools.table?.insertTable?.(r, c);
+        this._closeToolContextPopover();
+      });
+    });
+
+    const onDocClick = (e) => {
+      if (this.activeToolPopover && !this.activeToolPopover.contains(e.target) && !anchorBtn.contains(e.target)) {
+        this._closeToolContextPopover();
+        document.removeEventListener('pointerdown', onDocClick);
+      }
+    };
+    setTimeout(() => document.addEventListener('pointerdown', onDocClick), 20);
   }
 }

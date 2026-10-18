@@ -166,17 +166,17 @@ export class LibraryView {
             </div>
             ${pinnedCount > 0 ? `
               <div class="pastel-chip ${this.activeFilter === 'pinned' ? 'active' : ''}" data-filter="pinned">
-                <span class="pastel-chip-dot" style="background-color: var(--pastel-apricot);"></span> Pinned (${pinnedCount})
+                Pinned (${pinnedCount})
               </div>
             ` : ''}
             <div class="pastel-chip ${this.activeFilter === 'eng' ? 'active' : ''}" data-filter="eng">
-              <span class="pastel-chip-dot" style="background-color: var(--pastel-sage);"></span> Engineering (${engCount})
+              Engineering (${engCount})
             </div>
             <div class="pastel-chip ${this.activeFilter === 'ruled' ? 'active' : ''}" data-filter="ruled">
-              <span class="pastel-chip-dot" style="background-color: var(--pastel-lavender);"></span> Lined (${ruledCount})
+              Lined (${ruledCount})
             </div>
             <div class="pastel-chip ${this.activeFilter === 'grid' ? 'active' : ''}" data-filter="grid">
-              <span class="pastel-chip-dot" style="background-color: var(--pastel-slate);"></span> Grid & Plain (${gridCount})
+              Grid & Plain (${gridCount})
             </div>
           </div>
 
@@ -232,8 +232,7 @@ export class LibraryView {
             <div class="ui-card-description" style="font-size: 11.5px; opacity: 0.85;">
               ${dateStr}
             </div>
-            <span style="font-size: 11px; color: ${pastel.hex}; font-weight: 500; display: inline-flex; align-items: center; gap: 4px;">
-              <span style="width: 5px; height: 5px; border-radius: 50%; background-color: ${pastel.hex};"></span>
+            <span style="font-size: 11px; color: ${pastel.hex}; font-weight: 500;">
               ${templateLabel}
             </span>
           </div>
@@ -480,8 +479,7 @@ export class LibraryView {
           <div id="modal-live-preview" style="border-radius: var(--radius-md); border: 1px solid ${selectedColor}40; overflow: hidden; background: linear-gradient(155deg, ${selectedColor}18 0%, hsl(var(--card)) 48%); box-shadow: 0 4px 12px rgba(0,0,0,0.06); display: flex; flex-direction: column; transition: all 0.22s ease;">
             <div style="padding: 12px 14px 6px; display: flex; align-items: center; justify-content: space-between;">
               <div id="modal-preview-title" style="font-size: 13.5px; font-weight: 600; color: hsl(var(--foreground));">My Notebook</div>
-              <span id="modal-preview-label" style="font-size: 11px; color: ${selectedColor}; font-weight: 500; display: inline-flex; align-items: center; gap: 4px;">
-                <span style="width: 5px; height: 5px; border-radius: 50%; background-color: ${selectedColor};"></span>
+              <span id="modal-preview-label" style="font-size: 11px; color: ${selectedColor}; font-weight: 500;">
                 Standard Lined
               </span>
             </div>
@@ -598,10 +596,7 @@ export class LibraryView {
     templateSelect.addEventListener('change', () => {
       const selectedOption = templateSelect.options[templateSelect.selectedIndex];
       const text = selectedOption.text.split('(')[0].trim();
-      previewLabel.innerHTML = `
-        <span style="width: 5px; height: 5px; border-radius: 50%; background-color: ${selectedColor};"></span>
-        ${text}
-      `;
+      previewLabel.textContent = text;
     });
 
     overlay.querySelectorAll('.modal-color-swatch').forEach(sw => {
@@ -627,10 +622,7 @@ export class LibraryView {
           const selectedOption = templateSelect.options[templateSelect.selectedIndex];
           const text = selectedOption.text.split('(')[0].trim();
           previewLabel.style.color = selectedColor;
-          previewLabel.innerHTML = `
-            <span style="width: 5px; height: 5px; border-radius: 50%; background-color: ${selectedColor};"></span>
-            ${text}
-          `;
+          previewLabel.textContent = text;
         }
       });
     });
