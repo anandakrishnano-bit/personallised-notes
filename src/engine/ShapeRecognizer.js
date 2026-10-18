@@ -612,8 +612,8 @@ export class ShapeRecognizer {
       }
       maxD = Math.max(maxD, minD);
     }
-    // Circles and ellipses bow outwards by ~0.0304 * length; hand-drawn polygons stay tightly within ~0.024 * length
-    if (maxD / Math.max(1, totalLength) > 0.024) return null;
+    // Circles and ellipses bow outwards by ~0.0304 * length; hand-drawn polygons stay tightly within ~0.032 * length
+    if (maxD / Math.max(1, totalLength) > 0.032) return null;
 
     const minX = Math.min(...polyCorners.map(p => p.x));
     const maxX = Math.max(...polyCorners.map(p => p.x));
