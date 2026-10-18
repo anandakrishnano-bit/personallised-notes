@@ -612,8 +612,8 @@ export class ShapeRecognizer {
       }
       maxD = Math.max(maxD, minD);
     }
-    // Circles and ellipses bow outwards by ~0.040 * length; hand-drawn polygons stay tightly within ~0.042 * length
-    if (maxD / Math.max(1, totalLength) > 0.042) return null;
+    // Circles and ellipses bow outwards by ~0.0304 * length; hand-drawn polygons stay tightly within ~0.024 * length
+    if (maxD / Math.max(1, totalLength) > 0.024) return null;
 
     const minX = Math.min(...polyCorners.map(p => p.x));
     const maxX = Math.max(...polyCorners.map(p => p.x));
@@ -665,7 +665,7 @@ export class ShapeRecognizer {
 
   /** Find corners of closed stroke via RDP and angular change */
   static _findPolygonCorners(points, perimeter) {
-    const epsilon = Math.max(3, perimeter * 0.045);
+    const epsilon = Math.max(2.5, perimeter * 0.028);
     // Find point furthest from points[0] to split loop into two halves
     let maxD = 0, splitIdx = Math.floor(points.length / 2);
     for (let i = 1; i < points.length; i++) {

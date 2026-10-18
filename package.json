@@ -2,7 +2,7 @@
   "name": "personalized-notes",
   "private": true,
   "version": "1.0.0",
-  "description": "A high-performance offline digital notebook featuring multi-layer canvas rendering, intelligent shape conversion, and boundary-aware area filling.",
+  "description": "A high-performance, offline-first digital notebook for handwriting, sketching, and structured notes.",
   "type": "module",
   "keywords": [
     "digital-notebook",
@@ -12,7 +12,6 @@
     "offline-first",
     "pwa",
     "note-taking",
-    "vector-shapes",
     "indexeddb"
   ],
   "license": "MIT",
