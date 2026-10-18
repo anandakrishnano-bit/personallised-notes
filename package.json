@@ -2,8 +2,20 @@
   "name": "personalized-notes",
   "private": true,
   "version": "1.0.0",
-  "description": "A fast, offline, all-in-one digital notebook",
+  "description": "A high-performance offline digital notebook featuring multi-layer canvas rendering, intelligent shape conversion, and boundary-aware area filling.",
   "type": "module",
+  "keywords": [
+    "digital-notebook",
+    "canvas",
+    "handwriting",
+    "drawing",
+    "offline-first",
+    "pwa",
+    "note-taking",
+    "vector-shapes",
+    "indexeddb"
+  ],
+  "license": "MIT",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
