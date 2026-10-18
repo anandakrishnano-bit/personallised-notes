@@ -1,15 +1,54 @@
 /**
- * FillTool — Shape and area fill tool.
- * Allows filling geometric shapes (rectangle, circle, triangle, polygon, etc.)
- * or custom closed strokes with the active pastel or custom color.
- * Clicking empty paper fills the page background.
+ * FillTool — Intelligent Flood Fill & Shape Fill Tool.
  * 
- * Safety & UX:
- * - Only triggers on a deliberate tap (never during panning, zooming, or dragging)
- * - Uses exact geometric hit-testing (never broad bounding boxes)
- * - Single-step clean undo/redo support
+ * Supports:
+ * 1. Boundary-Aware Flood Fill: Fills closed spaces enclosed by any combination of
+ *    hand-drawn lines, pen strokes, pencil strokes, or overlapping shapes.
+ * 2. Closed Vector Shape Fill: Direct hit-test fill on clean geometric shapes.
+ * 3. Page Background Fill: Changes background only when clicking empty paper with no strokes.
+ * 4. Gap protection: Prevents accidental full-page flooding when lines do not connect,
+ *    giving human-friendly feedback.
  */
 import { BaseTool } from './BaseTool.js';
+import { Stroke } from '../models/Stroke.js';
+import { StrokeRenderer } from '../engine/StrokeRenderer.js';
+import { Toast } from '../ui/Toast.js';
+
+function parseColorRgba(colorStr, opacity = 1) {
+  const c = document.createElement('canvas');
+  c.width = 1;
+  c.height = 1;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = colorStr;
+  ctx.fillRect(0, 0, 1, 1);
+  const data = ctx.getImageData(0, 0, 1, 1).data;
+  return [data[0], data[1], data[2], Math.round((opacity ?? 1) * 255)];
+}
+
+function dilateFill(data, width, height, r, g, b, a) {
+  // 1-pixel bleed so fill tucks smoothly under boundary strokes without gap
+  const copy = new Uint8Array(data.length);
+  copy.set(data);
+
+  for (let y = 1; y < height - 1; y++) {
+    for (let x = 1; x < width - 1; x++) {
+      const idx = (y * width + x) * 4;
+      if (copy[idx + 3] === 0) {
+        if (
+          copy[((y - 1) * width + x) * 4 + 3] > 0 ||
+          copy[((y + 1) * width + x) * 4 + 3] > 0 ||
+          copy[(y * width + (x - 1)) * 4 + 3] > 0 ||
+          copy[(y * width + (x + 1)) * 4 + 3] > 0
+        ) {
+          data[idx] = r;
+          data[idx + 1] = g;
+          data[idx + 2] = b;
+          data[idx + 3] = a;
+        }
+      }
+    }
+  }
+}
 
 function isPointInPolygon(point, vs) {
   if (!vs || vs.length < 3) return false;
@@ -150,53 +189,266 @@ export class FillTool extends BaseTool {
 
     const opts = this.getToolOptions();
     const fillColor = opts.color || '#8FA89B';
+    const opacity = opts.opacity ?? 1;
 
-    // 1. Check if clicking inside an existing shape or closed stroke
-    if (page.strokes && page.strokes.length > 0) {
-      for (let i = page.strokes.length - 1; i >= 0; i--) {
-        const s = page.strokes[i];
-        if (isPointInShape(clickPt, s)) {
-          const oldFill = s.fillColor || null;
-          s.fillColor = fillColor;
-          page.modifiedAt = Date.now();
-          this.app.history.push({
-            type: 'fillShape',
-            strokeId: s.id,
-            oldFill,
-            newFill: fillColor,
-            pageId: page.id
-          });
-          this.app.redrawContent();
-          this.app.scheduleSave();
+    // 1. If page has no strokes at all, clicking paper fills background
+    if (!page.strokes || page.strokes.length === 0) {
+      const oldBg = page.bgColor || null;
+      page.bgColor = fillColor;
+      page.modifiedAt = Date.now();
+      this.app.history.push({
+        type: 'pageBg',
+        oldBg,
+        newBg: fillColor,
+        pageId: page.id
+      });
+      this.app.redrawBackground();
+      this.app.redrawContent();
+      this.app.scheduleSave();
+      return;
+    }
 
-          // Flash visual feedback
-          const b = s.getBounds ? s.getBounds() : (s.start && s.end ? {
-            x: Math.min(s.start.x, s.end.x),
-            y: Math.min(s.start.y, s.end.y),
-            width: Math.abs(s.end.x - s.start.x),
-            height: Math.abs(s.end.y - s.start.y)
-          } : null);
-          if (b) {
-            this._flashFillFeedback(b.x, b.y, b.width, b.height);
+    // 2. Perform Boundary-Aware Flood Fill to detect closed spaces between lines or shapes
+    const filledSuccess = this._floodFillEnclosedArea(clickPt, page, fillColor, opacity);
+    if (filledSuccess) {
+      return;
+    }
+
+    // 3. Fallback: check if clicked directly inside a single closed geometric vector shape
+    for (let i = page.strokes.length - 1; i >= 0; i--) {
+      const s = page.strokes[i];
+      if (isPointInShape(clickPt, s)) {
+        const oldFill = s.fillColor || null;
+        s.fillColor = fillColor;
+        page.modifiedAt = Date.now();
+        this.app.history.push({
+          type: 'fillShape',
+          strokeId: s.id,
+          oldFill,
+          newFill: fillColor,
+          pageId: page.id
+        });
+        this.app.redrawContent();
+        this.app.scheduleSave();
+
+        const b = s.getBounds ? s.getBounds() : null;
+        if (b) {
+          this._flashFillFeedback(b.x, b.y, b.width, b.height);
+        }
+        return;
+      }
+    }
+  }
+
+  _floodFillEnclosedArea(clickPt, page, fillColor, opacity) {
+    const pageW = page.width || 794;
+    const pageH = page.height || 1123;
+
+    // Boundary canvas resolution
+    const maxDim = 1200;
+    const scale = Math.min(1, maxDim / Math.max(pageW, pageH));
+    const canvasW = Math.max(10, Math.round(pageW * scale));
+    const canvasH = Math.max(10, Math.round(pageH * scale));
+
+    const offCanvas = document.createElement('canvas');
+    offCanvas.width = canvasW;
+    offCanvas.height = canvasH;
+    const offCtx = offCanvas.getContext('2d', { willReadFrequently: true });
+
+    // Render boundary barriers: strokes and shapes
+    offCtx.setTransform(scale, 0, 0, scale, 0, 0);
+
+    for (const s of page.strokes) {
+      if (s.tool === 'fill' && s.fillData) {
+        StrokeRenderer.renderStroke(offCtx, s);
+      } else {
+        // Enforce solid stroke lines with minimum thickness 3 to reliably close corners
+        const savedSize = s.size;
+        s.size = Math.max(s.size || 2, 3);
+        StrokeRenderer.renderStroke(offCtx, s);
+        s.size = savedSize;
+      }
+    }
+
+    const imgData = offCtx.getImageData(0, 0, canvasW, canvasH);
+    const data = imgData.data;
+
+    let seedX = Math.round(clickPt.x * scale);
+    let seedY = Math.round(clickPt.y * scale);
+
+    if (seedX < 0 || seedX >= canvasW || seedY < 0 || seedY >= canvasH) {
+      return false;
+    }
+
+    const getAlpha = (x, y) => data[(y * canvasW + x) * 4 + 3];
+
+    // If seed point lands directly on a stroke barrier, probe immediate neighborhood for empty pocket
+    if (getAlpha(seedX, seedY) > 50) {
+      let found = false;
+      for (let r = 1; r <= 8 && !found; r++) {
+        const deltas = [[0, -r], [0, r], [-r, 0], [r, 0], [-r, -r], [r, r], [-r, r], [-r, -r]];
+        for (const [dx, dy] of deltas) {
+          const nx = seedX + dx;
+          const ny = seedY + dy;
+          if (nx >= 0 && nx < canvasW && ny >= 0 && ny < canvasH && getAlpha(nx, ny) <= 30) {
+            seedX = nx;
+            seedY = ny;
+            found = true;
+            break;
           }
-          return;
+        }
+      }
+      if (!found) return false;
+    }
+
+    // Flood fill queue & visited buffer
+    const totalPixels = canvasW * canvasH;
+    const visited = new Uint8Array(totalPixels);
+    const queue = new Int32Array(totalPixels);
+    let qHead = 0;
+    let qTail = 0;
+
+    const startIdx = seedY * canvasW + seedX;
+    visited[startIdx] = 1;
+    queue[qTail++] = startIdx;
+
+    let minX = seedX, maxX = seedX;
+    let minY = seedY, maxY = seedY;
+    let filledCount = 0;
+    let reachedCanvasEdge = false;
+
+    // Safety threshold: if fill spans more than 65% of the page, it has leaked out of an open boundary
+    const maxFillPixels = Math.floor(totalPixels * 0.65);
+
+    while (qHead < qTail) {
+      const curr = queue[qHead++];
+      const cx = curr % canvasW;
+      const cy = (curr / canvasW) | 0;
+      filledCount++;
+
+      if (cx < minX) minX = cx;
+      if (cx > maxX) maxX = cx;
+      if (cy < minY) minY = cy;
+      if (cy > maxY) maxY = cy;
+
+      if (cx <= 1 || cx >= canvasW - 2 || cy <= 1 || cy >= canvasH - 2) {
+        reachedCanvasEdge = true;
+      }
+
+      if (filledCount > maxFillPixels) {
+        Toast.info('Area is not closed. Connect lines to fill.');
+        return false;
+      }
+
+      // Check 4-connected neighbors
+      if (cx > 0) {
+        const n = curr - 1;
+        if (!visited[n]) {
+          visited[n] = 1;
+          if (data[n * 4 + 3] <= 40) queue[qTail++] = n;
+        }
+      }
+      if (cx < canvasW - 1) {
+        const n = curr + 1;
+        if (!visited[n]) {
+          visited[n] = 1;
+          if (data[n * 4 + 3] <= 40) queue[qTail++] = n;
+        }
+      }
+      if (cy > 0) {
+        const n = curr - canvasW;
+        if (!visited[n]) {
+          visited[n] = 1;
+          if (data[n * 4 + 3] <= 40) queue[qTail++] = n;
+        }
+      }
+      if (cy < canvasH - 1) {
+        const n = curr + canvasW;
+        if (!visited[n]) {
+          visited[n] = 1;
+          if (data[n * 4 + 3] <= 40) queue[qTail++] = n;
         }
       }
     }
 
-    // 2. Clicked empty page area -> fill page background
-    const oldBg = page.bgColor || null;
-    page.bgColor = fillColor;
+    // If flood fill reached the outer edge and flooded open canvas
+    if (reachedCanvasEdge && filledCount > totalPixels * 0.12) {
+      Toast.info('Area is not closed. Connect lines to fill.');
+      return false;
+    }
+
+    if (filledCount < 4) {
+      return false;
+    }
+
+    // Extract closed region patch
+    const rw = maxX - minX + 1;
+    const rh = maxY - minY + 1;
+
+    const patchCanvas = document.createElement('canvas');
+    patchCanvas.width = rw;
+    patchCanvas.height = rh;
+    const patchCtx = patchCanvas.getContext('2d');
+    const patchImgData = patchCtx.createImageData(rw, rh);
+    const pData = patchImgData.data;
+
+    const [r, g, b, a] = parseColorRgba(fillColor, opacity);
+
+    for (let y = minY; y <= maxY; y++) {
+      for (let x = minX; x <= maxX; x++) {
+        const idx = y * canvasW + x;
+        if (visited[idx] === 1 && data[idx * 4 + 3] <= 40) {
+          const outIdx = ((y - minY) * rw + (x - minX)) * 4;
+          pData[outIdx] = r;
+          pData[outIdx + 1] = g;
+          pData[outIdx + 2] = b;
+          pData[outIdx + 3] = a;
+        }
+      }
+    }
+
+    dilateFill(pData, rw, rh, r, g, b, a);
+    patchCtx.putImageData(patchImgData, 0, 0);
+
+    const dataUrl = patchCanvas.toDataURL('image/png');
+
+    const docX = Math.round(minX / scale);
+    const docY = Math.round(minY / scale);
+    const docW = Math.round(rw / scale);
+    const docH = Math.round(rh / scale);
+
+    const fillStroke = new Stroke({
+      tool: 'fill',
+      color: fillColor,
+      fillColor: fillColor,
+      opacity: opacity,
+      start: { x: docX, y: docY },
+      end: { x: docX + docW, y: docY + docH },
+      fillData: {
+        x: docX,
+        y: docY,
+        width: docW,
+        height: docH,
+        dataUrl: dataUrl
+      }
+    });
+    fillStroke._image = patchCanvas;
+
+    // Place fill underneath boundary lines
+    page.strokes.unshift(fillStroke);
     page.modifiedAt = Date.now();
+
     this.app.history.push({
-      type: 'pageBg',
-      oldBg,
-      newBg: fillColor,
+      type: 'addStroke',
+      stroke: fillStroke,
+      insertAtStart: true,
       pageId: page.id
     });
-    this.app.redrawBackground();
+
     this.app.redrawContent();
     this.app.scheduleSave();
+    this._flashFillFeedback(docX, docY, docW, docH);
+    return true;
   }
 
   _flashFillFeedback(x, y, w, h) {

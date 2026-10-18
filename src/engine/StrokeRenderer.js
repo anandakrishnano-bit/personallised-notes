@@ -130,11 +130,49 @@ export class StrokeRenderer {
     return finalPoint;
   }
 
+  static _fillImgCache = new Map();
+
+  static renderFillRegion(ctx, stroke) {
+    const { fillData, opacity } = stroke;
+    if (!fillData) return;
+
+    ctx.save();
+    ctx.globalAlpha = opacity ?? 1;
+
+    if (stroke._image) {
+      ctx.drawImage(stroke._image, fillData.x, fillData.y, fillData.width, fillData.height);
+      ctx.restore();
+      return;
+    }
+
+    if (!fillData.dataUrl) {
+      ctx.restore();
+      return;
+    }
+
+    let img = this._fillImgCache.get(stroke.id);
+    if (!img) {
+      img = new Image();
+      img.src = fillData.dataUrl;
+      this._fillImgCache.set(stroke.id, img);
+    }
+
+    if (img.complete && img.naturalWidth > 0) {
+      ctx.drawImage(img, fillData.x, fillData.y, fillData.width, fillData.height);
+    }
+    ctx.restore();
+  }
+
   /**
    * Render a complete stroke or shape.
    * Used for content canvas redraw (undo, zoom, page switch).
    */
   static renderStroke(ctx, stroke) {
+    if (stroke.tool === 'fill' && stroke.fillData) {
+      this.renderFillRegion(ctx, stroke);
+      return;
+    }
+
     if (stroke.isShape && (stroke.shapeData || (stroke.start && stroke.end))) {
       this.renderShape(
         ctx,
@@ -467,6 +505,16 @@ export class StrokeRenderer {
    * Check if a point is near a stroke or shape (for eraser hit-testing)
    */
   static isPointNearStroke(px, py, stroke, threshold) {
+    if (stroke.tool === 'fill' && stroke.fillData) {
+      const fd = stroke.fillData;
+      return (
+        px >= fd.x - threshold &&
+        px <= fd.x + fd.width + threshold &&
+        py >= fd.y - threshold &&
+        py <= fd.y + fd.height + threshold
+      );
+    }
+
     if (stroke.isShape && stroke.start && stroke.end) {
       const b = stroke.getBounds ? stroke.getBounds() : null;
       if (!b) return false;

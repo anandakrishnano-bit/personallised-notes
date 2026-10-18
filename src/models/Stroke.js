@@ -27,6 +27,7 @@ export class Stroke {
     this.shapeType = opts.shapeType || null;
     this.shapeData = opts.shapeData || null;
     this.fillColor = opts.fillColor || null;
+    this.fillData = opts.fillData || null;
     this.start = opts.start || null;
     this.end = opts.end || null;
     this.bounds = null; // Cached bounding box
@@ -60,6 +61,16 @@ export class Stroke {
   /** Get bounding box (cached) */
   getBounds() {
     if (this.bounds) return this.bounds;
+
+    if (this.fillData) {
+      this.bounds = {
+        x: this.fillData.x,
+        y: this.fillData.y,
+        width: this.fillData.width,
+        height: this.fillData.height
+      };
+      return this.bounds;
+    }
 
     const pad = this.size / 2 + 4;
 
@@ -129,6 +140,7 @@ export class Stroke {
       shapeType: this.shapeType,
       shapeData: this.shapeData,
       fillColor: this.fillColor,
+      fillData: this.fillData,
       start: this.start,
       end: this.end,
       timestamp: this.timestamp
@@ -147,6 +159,7 @@ export class Stroke {
       shapeType: data.shapeType,
       shapeData: data.shapeData,
       fillColor: data.fillColor,
+      fillData: data.fillData,
       start: data.start,
       end: data.end
     });

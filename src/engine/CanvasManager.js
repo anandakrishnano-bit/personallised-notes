@@ -54,14 +54,18 @@ export class CanvasManager {
     const prevWidth = this.width;
     const prevHeight = this.height;
     const rect = this.container.getBoundingClientRect();
-    this.width = rect.width;
-    this.height = rect.height;
+    const width = this.container.clientWidth || rect.width || window.innerWidth;
+    const height = this.container.clientHeight || rect.height || (window.innerHeight - 88);
+    this.width = width;
+    this.height = height;
     this.dpr = window.devicePixelRatio || 1;
 
     for (const layer of Object.values(this.layers)) {
       const { canvas, ctx } = layer;
-      canvas.width = Math.round(rect.width * this.dpr);
-      canvas.height = Math.round(rect.height * this.dpr);
+      canvas.style.width = `${width}px`;
+      canvas.style.height = `${height}px`;
+      canvas.width = Math.round(width * this.dpr);
+      canvas.height = Math.round(height * this.dpr);
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.scale(this.dpr, this.dpr);
     }

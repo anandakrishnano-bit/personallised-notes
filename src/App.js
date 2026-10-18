@@ -245,6 +245,9 @@ export class App {
       text: new TextTool(this)
     };
     this.activeTool = this.tools.pen;
+    if (this.canvasManager) {
+      this.canvasManager.eventCanvas.style.cursor = this.activeTool.cursor || 'crosshair';
+    }
 
     // 3. Initialize input handler
     this.inputHandler = new InputHandler(this.canvasManager, this);

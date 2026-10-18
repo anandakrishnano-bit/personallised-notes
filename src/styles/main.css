@@ -617,6 +617,7 @@ input, select, textarea { font: inherit; color: inherit; }
   left: 0;
   width: 100%;
   height: 100%;
+  cursor: inherit;
 }
 
 /* --- Library / Home Layout --- */
@@ -669,12 +670,12 @@ input, select, textarea { font: inherit; color: inherit; }
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 3px 10px rgba(168, 159, 202, 0.35);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
   transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease;
 }
 .home-app-icon:hover {
   transform: rotate(-6deg) scale(1.08);
-  box-shadow: 0 5px 14px rgba(168, 159, 202, 0.45);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.16);
 }
 
 .home-content {
@@ -778,10 +779,14 @@ input, select, textarea { font: inherit; color: inherit; }
 }
 
 .ui-card.notebook-card-item:hover {
-  transform: translateY(-4px) scale(1.01);
-  box-shadow: 0 14px 28px -6px var(--card-glow, rgba(0, 0, 0, 0.1)), 0 4px 10px -2px rgba(0, 0, 0, 0.05);
-  border-color: var(--card-border-hover, hsl(var(--muted-foreground) / 0.4));
-  background: linear-gradient(155deg, var(--card-pastel-tint-hover, rgba(168, 159, 202, 0.22)) 0%, hsl(var(--card)) 44%);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 18px -4px rgba(0, 0, 0, 0.08), 0 2px 6px -1px rgba(0, 0, 0, 0.04);
+  border-color: var(--card-border-hover, hsl(var(--muted-foreground) / 0.3));
+  background: linear-gradient(155deg, var(--card-pastel-tint-hover, rgba(168, 159, 202, 0.12)) 0%, hsl(var(--card)) 44%);
+}
+
+[data-theme="dark"] .ui-card.notebook-card-item:hover {
+  box-shadow: 0 8px 20px -4px rgba(0, 0, 0, 0.5);
 }
 
 .ui-card.notebook-card-item.holding {
@@ -1077,16 +1082,14 @@ input, select, textarea { font: inherit; color: inherit; }
 @keyframes editorOpenZoom {
   0% {
     opacity: 0;
-    transform: scale(0.975);
   }
   100% {
     opacity: 1;
-    transform: scale(1);
   }
 }
 
 .editor-enter-anim {
-  animation: editorOpenZoom 200ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: editorOpenZoom 160ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 @keyframes libraryEnterFade {

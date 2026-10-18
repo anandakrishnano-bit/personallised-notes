@@ -97,8 +97,10 @@ export class InputHandler {
 
   _getDocPoint(e) {
     const rect = this.cm.eventCanvas.getBoundingClientRect();
-    const sx = e.clientX - rect.left;
-    const sy = e.clientY - rect.top;
+    const scaleX = (rect.width > 0 && this.cm.width > 0) ? (this.cm.width / rect.width) : 1;
+    const scaleY = (rect.height > 0 && this.cm.height > 0) ? (this.cm.height / rect.height) : 1;
+    const sx = (e.clientX - rect.left) * scaleX;
+    const sy = (e.clientY - rect.top) * scaleY;
     const doc = this.cm.screenToDoc(sx, sy);
     return {
       x: doc.x,
@@ -174,7 +176,8 @@ export class InputHandler {
 
     // Get coalesced events for sub-frame points
     const points = [];
-    const coalescedEvents = e.getCoalescedEvents ? e.getCoalescedEvents() : [e];
+    const rawCoalesced = e.getCoalescedEvents ? e.getCoalescedEvents() : null;
+    const coalescedEvents = (rawCoalesced && rawCoalesced.length > 0) ? rawCoalesced : [e];
     for (const ce of coalescedEvents) {
       points.push(this._getDocPoint(ce));
     }

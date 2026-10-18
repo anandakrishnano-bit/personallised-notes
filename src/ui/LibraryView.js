@@ -217,7 +217,7 @@ export class LibraryView {
 
     return `
       <div class="ui-card notebook-card-item" data-id="${nb.id}" 
-           style="--stagger-i: ${index}; --card-pastel: ${pastel.hex}; --card-pastel-tint: ${pastel.hex}14; --card-pastel-tint-hover: ${pastel.hex}25; --card-glow: ${pastel.shadow}; --card-border: ${pastel.hex}30; --card-border-hover: ${pastel.hex}65;">
+           style="--stagger-i: ${index}; --card-pastel: ${pastel.hex}; --card-pastel-tint: ${pastel.hex}14; --card-pastel-tint-hover: ${pastel.hex}25; --card-border: ${pastel.hex}30; --card-border-hover: ${pastel.hex}65;">
         
         <div class="ui-card-header" style="position: relative; padding: 14px 16px 10px;">
           <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">

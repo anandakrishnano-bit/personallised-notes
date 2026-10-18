@@ -59,7 +59,11 @@ export class HistoryManager {
   _apply(action, page) {
     switch (action.type) {
       case 'addStroke':
-        page.strokes.push(action.stroke);
+        if (action.insertAtStart) {
+          page.strokes.unshift(action.stroke);
+        } else {
+          page.strokes.push(action.stroke);
+        }
         break;
       case 'convertShape':
         page.strokes.push(action.convertedStroke || action.stroke);
